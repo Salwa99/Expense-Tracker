@@ -45,14 +45,14 @@ namespace Expense_Tracker.Controllers
         {
             if (ModelState.IsValid)
             {
-                // Get current user
+             
                 var user = await _userManager.GetUserAsync(User);
                 if (user == null)
                 {
                     return RedirectToAction("Login", "Account");
                 }
 
-                // Create new expense
+                
                 var newExpense = new Expense
                 {
                     Description = expense.Description,
@@ -69,7 +69,6 @@ namespace Expense_Tracker.Controllers
                 return RedirectToAction("Index", "Dashboard");
             }
 
-            // If ModelState is invalid, return to form
             ViewBag.Categories = await _context.Categories.ToListAsync();
             return View(expense);
         }
