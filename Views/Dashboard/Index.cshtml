@@ -1,0 +1,114 @@
+﻿@model Expense_Tracker.Models.ViewModels.DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="container mx-auto px-4 py-8">
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-600 mb-2">Total Expenses</h3>
+            <p class="text-3xl font-bold text-blue-600">@Model.TotalExpenses.ToString("C")</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-600 mb-2">Categories</h3>
+            <p class="text-3xl font-bold text-green-600">@Model.CategoryExpenses.Count</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-600 mb-2">Recent Month</h3>
+            <p class="text-3xl font-bold text-purple-600">@Model.MonthlyExpenses.LastOrDefault()?.Amount.ToString("C")</p>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-lg font-semibold mb-4">Expenses by Category</h3>
+            <div class="h-64" id="categoryChart"></div>
+        </div>
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-lg font-semibold mb-4">Monthly Trend</h3>
+            <div class="h-64" id="trendChart"></div>
+        </div>
+    </div>
+
+    <!-- Recent Transactions -->
+    <div class="bg-white rounded-xl shadow-lg p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold">Recent Transactions</h3>
+            <a href="@Url.Action("Create", "Expense")"
+               class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                Add Expense
+            </a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead>
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                        <th class="px-6 py-3"></th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    @foreach (var expense in Model.RecentExpenses)
+                    {
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap">@expense.Date.ToShortDateString()</td>
+                            <td class="px-6 py-4">@expense.Description</td>
+                            <td class="px-6 py-4">@expense.Category.Name</td>
+                            <td class="px-6 py-4">@expense.Amount.ToString("C")</td>
+                            <td class="px-6 py-4 text-right">
+                                <a href="@Url.Action("Edit", "Expense", new { id = expense.Id })"
+                                   class="text-blue-600 hover:text-blue-900">Edit</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Category Chart
+        const categoryData = @Html.Raw(Json.Serialize(Model.CategoryExpenses));
+        new Chart(document.getElementById('categoryChart'), {
+            type: 'doughnut',
+            data: {
+                labels: categoryData.map(x => x.CategoryName),
+                datasets: [{
+                    data: categoryData.map(x => x.TotalAmount),
+                    backgroundColor: categoryData.map(x => x.Color)
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+
+        // Trend Chart
+        const monthlyData = @Html.Raw(Json.Serialize(Model.MonthlyExpenses));
+        new Chart(document.getElementById('trendChart'), {
+            type: 'line',
+            data: {
+                labels: monthlyData.map(x => x.Month),
+                datasets: [{
+                    label: 'Monthly Expenses',
+                    data: monthlyData.map(x => x.Amount),
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    </script>
+}
