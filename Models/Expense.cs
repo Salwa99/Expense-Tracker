@@ -22,14 +22,14 @@ namespace Expense_Tracker.Models
         [DisplayFormat(DataFormatString = "{0:yyyy-MM-dd}", ApplyFormatInEditMode = true)]
         public DateTime Date { get; set; }
 
-        [Required(ErrorMessage = "Category is required")]
+        [Required(ErrorMessage = "Please select a category")]
         [Display(Name = "Category")]
         public int CategoryId { get; set; }
 
         public string UserId { get; set; }
 
         // Navigation properties
-        public virtual Category Category { get; set; }
+        public virtual Category? Category { get; set; }
         public virtual ApplicationUser User { get; set; }
     }
 }

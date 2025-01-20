@@ -16,7 +16,7 @@
         </div>
         <div class="bg-white rounded-xl shadow-lg p-6">
             <h3 class="text-lg font-semibold text-gray-600 mb-2">Recent Month</h3>
-            <p class="text-3xl font-bold text-purple-600">@Model.MonthlyExpenses.LastOrDefault()?.Amount.ToString("C")</p>
+            <p class="text-3xl font-bold text-purple-600">@(Model.MonthlyExpenses.LastOrDefault()?.Amount.ToString("C") ?? "$0.00")</p>
         </div>
     </div>
 
@@ -24,11 +24,11 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div class="bg-white rounded-xl shadow-lg p-6">
             <h3 class="text-lg font-semibold mb-4">Expenses by Category</h3>
-            <div class="h-64" id="categoryChart"></div>
+            <div id="categoryChart" class="h-64"></div>
         </div>
         <div class="bg-white rounded-xl shadow-lg p-6">
             <h3 class="text-lg font-semibold mb-4">Monthly Trend</h3>
-            <div class="h-64" id="trendChart"></div>
+            <div id="trendChart" class="h-64"></div>
         </div>
     </div>
 
@@ -73,41 +73,95 @@
 </div>
 
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script>
-        // Category Chart
-        const categoryData = @Html.Raw(Json.Serialize(Model.CategoryExpenses));
-        new Chart(document.getElementById('categoryChart'), {
-            type: 'doughnut',
-            data: {
-                labels: categoryData.map(x => x.CategoryName),
-                datasets: [{
-                    data: categoryData.map(x => x.TotalAmount),
-                    backgroundColor: categoryData.map(x => x.Color)
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false
-            }
-        });
+        document.addEventListener('DOMContentLoaded', function() {
+            // Debug: Log the data
+            console.log('Category Data:', @Html.Raw(Json.Serialize(Model.CategoryExpenses)));
+            console.log('Monthly Data:', @Html.Raw(Json.Serialize(Model.MonthlyExpenses)));
 
-        // Trend Chart
-        const monthlyData = @Html.Raw(Json.Serialize(Model.MonthlyExpenses));
-        new Chart(document.getElementById('trendChart'), {
-            type: 'line',
-            data: {
-                labels: monthlyData.map(x => x.Month),
-                datasets: [{
-                    label: 'Monthly Expenses',
-                    data: monthlyData.map(x => x.Amount),
-                    borderColor: 'rgb(75, 192, 192)',
-                    tension: 0.1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false
+            // Category Donut Chart
+            const categoryData = @Html.Raw(Json.Serialize(Model.CategoryExpenses));
+            if (categoryData && categoryData.length > 0) {
+                const categoryOptions = {
+                    series: categoryData.map(x => x.totalAmount),
+                    chart: {
+                        type: 'donut',
+                        height: 300
+                    },
+                    labels: categoryData.map(x => x.categoryName),
+                    colors: categoryData.map(x => x.color),
+                    legend: {
+                        position: 'right'
+                    },
+                    tooltip: {
+                        y: {
+                            formatter: function(value) {
+                                return '$' + value.toFixed(2);
+                            }
+                        }
+                    },
+                    dataLabels: {
+                        enabled: false
+                    }
+                };
+
+                const categoryChart = new ApexCharts(document.querySelector("#categoryChart"), categoryOptions);
+                categoryChart.render();
+            }
+
+            // Monthly Trend Line Chart
+            const monthlyData = @Html.Raw(Json.Serialize(Model.MonthlyExpenses));
+            if (monthlyData && monthlyData.length > 0) {
+                const monthlyOptions = {
+                    series: [{
+                        name: 'Monthly Expenses',
+                        data: monthlyData.map(x => x.amount)
+                    }],
+                    chart: {
+                        height: 300,
+                        type: 'area',
+                        toolbar: {
+                            show: false
+                        }
+                    },
+                    dataLabels: {
+                        enabled: false
+                    },
+                    stroke: {
+                        curve: 'smooth',
+                        width: 2
+                    },
+                    xaxis: {
+                        categories: monthlyData.map(x => x.month)
+                    },
+                    yaxis: {
+                        labels: {
+                            formatter: function(value) {
+                                return '$' + value.toFixed(2);
+                            }
+                        }
+                    },
+                    tooltip: {
+                        y: {
+                            formatter: function(value) {
+                                return '$' + value.toFixed(2);
+                            }
+                        }
+                    },
+                    fill: {
+                        type: 'gradient',
+                        gradient: {
+                            shadeIntensity: 1,
+                            opacityFrom: 0.7,
+                            opacityTo: 0.9,
+                            stops: [0, 90, 100]
+                        }
+                    }
+                };
+
+                const trendChart = new ApexCharts(document.querySelector("#trendChart"), monthlyOptions);
+                trendChart.render();
             }
         });
     </script>

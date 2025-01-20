@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Expense_Tracker.Data;
 using Expense_Tracker.Models;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Expense_Tracker.Models.ViewModels;
 
 namespace Expense_Tracker.Controllers
 {
@@ -12,112 +14,273 @@ namespace Expense_Tracker.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly ILogger<ExpenseController> _logger;
 
         public ExpenseController(
             ApplicationDbContext context,
-            UserManager<ApplicationUser> userManager)
+            UserManager<ApplicationUser> userManager,
+            ILogger<ExpenseController> logger)
         {
             _context = context;
             _userManager = userManager;
+            _logger = logger;
         }
 
-        public async Task<IActionResult> Index()
+        // GET: Expense
+        public async Task<IActionResult> Index(int? categoryId, string sortOrder, DateTime? startDate, DateTime? endDate)
         {
             var user = await _userManager.GetUserAsync(User);
-            var expenses = await _context.Expenses
-                .Include(e => e.Category)
-                .Where(e => e.UserId == user.Id)
-                .OrderByDescending(e => e.Date)
-                .ToListAsync();
+            if (user == null)
+            {
+                return RedirectToAction("Login", "Account");
+            }
 
-            return View(expenses);
+            // Start with base query
+            var query = _context.Expenses
+                .Include(e => e.Category)
+                .Where(e => e.UserId == user.Id);
+
+            // Apply category filter
+            if (categoryId.HasValue)
+            {
+                query = query.Where(e => e.CategoryId == categoryId.Value);
+            }
+
+            // Apply date filter
+            if (startDate.HasValue)
+            {
+                query = query.Where(e => e.Date >= startDate.Value);
+            }
+            if (endDate.HasValue)
+            {
+                query = query.Where(e => e.Date <= endDate.Value);
+            }
+
+            // Apply sorting
+            query = sortOrder switch
+            {
+                "date_asc" => query.OrderBy(e => e.Date),
+                "date_desc" => query.OrderByDescending(e => e.Date),
+                "amount_asc" => query.OrderBy(e => e.Amount),
+                "amount_desc" => query.OrderByDescending(e => e.Amount),
+                _ => query.OrderByDescending(e => e.Date) // Default sort
+            };
+
+            var expenses = await query.ToListAsync();
+
+            // Prepare view model
+            var viewModel = new ExpenseFilterViewModel
+            {
+                Expenses = expenses,
+                CategoryId = categoryId,
+                SortOrder = sortOrder,
+                StartDate = startDate,
+                EndDate = endDate
+            };
+
+            // Get categories for filter dropdown
+            ViewBag.Categories = new SelectList(_context.Categories, "Id", "Name", categoryId);
+
+            return View(viewModel);
         }
 
+        // GET: Expense/Create
         public IActionResult Create()
         {
-            ViewBag.Categories = _context.Categories.ToList();
-            return View();
+            var user = _userManager.GetUserAsync(User).Result;
+            if (user == null)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
+            ViewBag.Categories = new SelectList(_context.Categories, "Id", "Name");
+            return View(new Expense { Date = DateTime.Today });
         }
 
+        // POST: Expense/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(Expense expense)
+        public async Task<IActionResult> Create([Bind("Description,Amount,Date,CategoryId")] Expense expense)
         {
-            if (ModelState.IsValid)
+            try
             {
-             
+                // Get current user first
                 var user = await _userManager.GetUserAsync(User);
                 if (user == null)
                 {
                     return RedirectToAction("Login", "Account");
                 }
 
-                
-                var newExpense = new Expense
+                // Remove validation for UserId, User, and Category navigation property
+                ModelState.Remove("UserId");
+                ModelState.Remove("User");
+                ModelState.Remove("Category");
+
+                if (ModelState.IsValid)
                 {
-                    Description = expense.Description,
-                    Amount = expense.Amount,
-                    Date = expense.Date,
-                    CategoryId = expense.CategoryId,
-                    UserId = user.Id
-                };
+                    // Validate CategoryId exists
+                    if (!_context.Categories.Any(c => c.Id == expense.CategoryId))
+                    {
+                        ModelState.AddModelError("CategoryId", "Please select a valid category");
+                        ViewBag.Categories = new SelectList(_context.Categories, "Id", "Name", expense.CategoryId);
+                        return View(expense);
+                    }
 
-                // Add and save
-                _context.Expenses.Add(newExpense);
-                await _context.SaveChangesAsync();
+                    // Set the user ID before saving
+                    expense.UserId = user.Id;
 
-                return RedirectToAction("Index", "Dashboard");
+                    _context.Expenses.Add(expense);
+                    await _context.SaveChangesAsync();
+
+                    TempData["Success"] = "Expense created successfully!";
+                    return RedirectToAction(nameof(Index));
+                }
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError("", "Error saving expense: " + ex.Message);
             }
 
-            ViewBag.Categories = await _context.Categories.ToListAsync();
+            // If we got this far, something failed
+            ViewBag.Categories = new SelectList(_context.Categories, "Id", "Name", expense.CategoryId);
             return View(expense);
         }
 
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, Expense expense)
+        // GET: Expense/Edit/5
+        [HttpGet]
+        public async Task<IActionResult> Edit(int id)
         {
-            if (id != expense.Id)
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
             {
-                return NotFound();
+                return RedirectToAction("Login", "Account");
             }
 
-            var user = await _userManager.GetUserAsync(User);
-            var existingExpense = await _context.Expenses
+            var expense = await _context.Expenses
+                .Include(e => e.Category)
                 .FirstOrDefaultAsync(e => e.Id == id && e.UserId == user.Id);
 
-            if (existingExpense == null)
+            if (expense == null)
             {
                 return NotFound();
             }
 
-            if (ModelState.IsValid)
-            {
-                try
-                {
-                    existingExpense.Description = expense.Description;
-                    existingExpense.Amount = expense.Amount;
-                    existingExpense.Date = expense.Date.Date;
-                    existingExpense.CategoryId = expense.CategoryId;
+            // Create SelectList for categories
+            ViewBag.Categories = new SelectList(
+                await _context.Categories.ToListAsync(),
+                "Id",
+                "Name",
+                expense.CategoryId
+            );
 
-                    await _context.SaveChangesAsync();
-                    return RedirectToAction(nameof(Index));
-                }
-                catch (DbUpdateConcurrencyException)
+            return View(expense);
+        }
+
+        // PUT: Expense/Edit/5
+        [HttpPut("Expense/Edit/{id}")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Edit(int id, [FromBody] Expense expense)
+        {
+            try
+            {
+                if (id != expense.Id)
                 {
-                    if (!ExpenseExists(expense.Id))
+                    return BadRequest(new { success = false, message = "Invalid expense ID" });
+                }
+
+                // Get current user
+                var user = await _userManager.GetUserAsync(User);
+                if (user == null)
+                {
+                    return Unauthorized(new { success = false, message = "User not authenticated" });
+                }
+
+                // Verify expense exists and belongs to current user
+                var existingExpense = await _context.Expenses
+                    .FirstOrDefaultAsync(e => e.Id == id && e.UserId == user.Id);
+
+                if (existingExpense == null)
+                {
+                    return NotFound(new { success = false, message = "Expense not found" });
+                }
+
+                // Remove validation for navigation properties and UserId
+                ModelState.Remove("Category");
+                ModelState.Remove("User");
+                ModelState.Remove("UserId"); // Remove UserId validation since we're setting it manually
+
+                // Verify the selected category exists
+                var categoryExists = await _context.Categories.AnyAsync(c => c.Id == expense.CategoryId);
+                if (!categoryExists)
+                {
+                    return BadRequest(new { success = false, message = "Selected category does not exist" });
+                }
+
+                if (ModelState.IsValid)
+                {
+                    try
                     {
-                        return NotFound();
+                        // Update properties
+                        existingExpense.Description = expense.Description;
+                        existingExpense.Amount = expense.Amount;
+                        existingExpense.Date = expense.Date;
+                        existingExpense.CategoryId = expense.CategoryId;
+                        existingExpense.UserId = user.Id; // Set the current user's ID
+
+                        // Mark entity as modified
+                        _context.Entry(existingExpense).State = EntityState.Modified;
+
+                        // Save changes
+                        await _context.SaveChangesAsync();
+
+                        return Ok(new
+                        {
+                            success = true,
+                            message = "Expense updated successfully",
+                            data = new
+                            {
+                                existingExpense.Id,
+                                existingExpense.Description,
+                                existingExpense.Amount,
+                                existingExpense.Date,
+                                existingExpense.CategoryId,
+                                existingExpense.UserId
+                            }
+                        });
                     }
-                    else
+                    catch (DbUpdateConcurrencyException)
                     {
+                        if (!await _context.Expenses.AnyAsync(e => e.Id == id))
+                        {
+                            return NotFound(new { success = false, message = "Expense no longer exists" });
+                        }
                         throw;
                     }
                 }
-            }
 
-            ViewBag.Categories = _context.Categories.ToList();
-            return View(expense);
+                var errors = ModelState
+                    .Where(x => x.Value.Errors.Count > 0)
+                    .SelectMany(x => x.Value.Errors)
+                    .Select(x => x.ErrorMessage)
+                    .ToList();
+
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Validation failed",
+                    errors = errors
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating expense {ExpenseId}", id);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "An error occurred while updating the expense",
+                    error = ex.Message
+                });
+            }
         }
 
         private bool ExpenseExists(int id)

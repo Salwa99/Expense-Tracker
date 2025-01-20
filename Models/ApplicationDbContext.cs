@@ -22,12 +22,14 @@ namespace Expense_Tracker.Data
             builder.Entity<Expense>()
                 .HasOne(e => e.Category)
                 .WithMany(c => c.Expenses)
-                .HasForeignKey(e => e.CategoryId);
+                .HasForeignKey(e => e.CategoryId)
+                .OnDelete(DeleteBehavior.Restrict); ;
 
             builder.Entity<Expense>()
                 .HasOne(e => e.User)
                 .WithMany(u => u.Expenses)
-                .HasForeignKey(e => e.UserId);
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Restrict); ;
 
             // Seed Categories
             builder.Entity<Category>().HasData(

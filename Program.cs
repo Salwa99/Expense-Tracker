@@ -25,6 +25,17 @@ builder.Services.Configure<IdentityOptions>(options =>
     options.Password.RequireLowercase = true;
 });
 
+// Add logging
+builder.Services.AddLogging(config =>
+{
+    config.AddConsole();
+    config.AddDebug();
+});
+
+// Configure service lifetime
+builder.Services.AddScoped<ApplicationDbContext>();
+
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())

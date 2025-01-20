@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace Expense_Tracker.Models.ViewModels
 {
@@ -45,22 +46,65 @@ namespace Expense_Tracker.Models.ViewModels
 
     public class DashboardViewModel
     {
+        [JsonPropertyName("totalExpenses")]
         public decimal TotalExpenses { get; set; }
+
+        [JsonPropertyName("categoryExpenses")]
         public List<CategoryExpense> CategoryExpenses { get; set; }
+
+        [JsonPropertyName("monthlyExpenses")]
         public List<MonthlyExpense> MonthlyExpenses { get; set; }
+
+        [JsonPropertyName("recentExpenses")]
         public List<Expense> RecentExpenses { get; set; }
     }
 
     public class CategoryExpense
     {
+        [JsonPropertyName("categoryName")]
         public string CategoryName { get; set; }
+
+        [JsonPropertyName("totalAmount")]
         public decimal TotalAmount { get; set; }
+
+        [JsonPropertyName("color")]
         public string Color { get; set; }
     }
 
     public class MonthlyExpense
     {
+        [JsonPropertyName("month")]
         public string Month { get; set; }
+
+        [JsonPropertyName("amount")]
         public decimal Amount { get; set; }
+    }
+
+    public class ExpenseFilterViewModel
+    {
+        public IEnumerable<Expense> Expenses { get; set; }
+
+        [Display(Name = "Category")]
+        public int? CategoryId { get; set; }
+
+        [Display(Name = "Start Date")]
+        [DataType(DataType.Date)]
+        public DateTime? StartDate { get; set; }
+
+        [Display(Name = "End Date")]
+        [DataType(DataType.Date)]
+        public DateTime? EndDate { get; set; }
+
+        [Display(Name = "Sort By")]
+        public string SortOrder { get; set; }
+
+        // Helper property for sort order options
+        public static class SortOrders
+        {
+            public const string DateDesc = "date_desc";
+            public const string DateAsc = "date_asc";
+            public const string AmountDesc = "amount_desc";
+            public const string AmountAsc = "amount_asc";
+        }
     }
 }

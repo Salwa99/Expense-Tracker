@@ -25,6 +25,10 @@ namespace Expense_Tracker.Controllers
         public async Task<IActionResult> Index()
         {
             var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+            {
+                return RedirectToAction("Login", "Account");
+            }
 
             // Get all user expenses
             var expenses = await _context.Expenses
@@ -35,26 +39,47 @@ namespace Expense_Tracker.Controllers
             // Calculate total expenses
             var totalExpenses = expenses.Sum(e => e.Amount);
 
-            // Calculate expenses by category
+            // Calculate expenses by category with fixed colors
+            var categoryColors = new Dictionary<string, string>
+    {
+        {"Housing", "#FF6384"},
+        {"Transportation", "#36A2EB"},
+        {"Food", "#FFCE56"},
+        {"Utilities", "#4BC0C0"},
+        {"Insurance", "#9966FF"},
+        {"Healthcare", "#FF9F40"},
+        {"Entertainment", "#EA80FC"},
+        {"Shopping", "#607D8B"},
+        {"Education", "#00E676"},
+        {"Other", "#FF5722"}
+    };
+
             var categoryExpenses = expenses
                 .GroupBy(e => e.Category.Name)
                 .Select(g => new CategoryExpense
                 {
                     CategoryName = g.Key,
                     TotalAmount = g.Sum(e => e.Amount),
-                    Color = GetRandomColor() // Helper method to generate colors
+                    Color = categoryColors.ContainsKey(g.Key) ? categoryColors[g.Key] : "#808080"
                 })
                 .ToList();
 
-            // Calculate monthly expenses
-            var monthlyExpenses = expenses
-                .GroupBy(e => new { e.Date.Year, e.Date.Month })
-                .Select(g => new MonthlyExpense
-                {
-                    Month = $"{g.Key.Year}-{g.Key.Month:D2}",
-                    Amount = g.Sum(e => e.Amount)
-                })
-                .OrderBy(m => m.Month)
+            // Calculate monthly expenses for the past 6 months
+            var last6Months = Enumerable.Range(0, 6)
+                .Select(i => DateTime.Now.AddMonths(-i))
+                .OrderBy(d => d)
+                .ToList();
+
+            var monthlyExpenses = last6Months
+                .GroupJoin(
+                    expenses,
+                    month => new { Year = month.Year, Month = month.Month },
+                    expense => new { Year = expense.Date.Year, Month = expense.Date.Month },
+                    (month, expenseGroup) => new MonthlyExpense
+                    {
+                        Month = month.ToString("MMM yyyy"),
+                        Amount = expenseGroup.Sum(e => e.Amount)
+                    })
                 .ToList();
 
             // Get recent expenses
