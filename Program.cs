@@ -25,7 +25,7 @@ builder.Services.Configure<IdentityOptions>(options =>
     options.Password.RequireLowercase = true;
 });
 
-// Add logging
+// logging
 builder.Services.AddLogging(config =>
 {
     config.AddConsole();

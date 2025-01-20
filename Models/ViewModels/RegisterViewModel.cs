@@ -98,7 +98,6 @@ namespace Expense_Tracker.Models.ViewModels
         [Display(Name = "Sort By")]
         public string SortOrder { get; set; }
 
-        // Helper property for sort order options
         public static class SortOrders
         {
             public const string DateDesc = "date_desc";

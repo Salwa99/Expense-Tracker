@@ -76,10 +76,7 @@
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Debug: Log the data
-            console.log('Category Data:', @Html.Raw(Json.Serialize(Model.CategoryExpenses)));
-            console.log('Monthly Data:', @Html.Raw(Json.Serialize(Model.MonthlyExpenses)));
-
+          
             // Category Donut Chart
             const categoryData = @Html.Raw(Json.Serialize(Model.CategoryExpenses));
             if (categoryData && categoryData.length > 0) {

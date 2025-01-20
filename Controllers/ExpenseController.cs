@@ -26,7 +26,6 @@ namespace Expense_Tracker.Controllers
             _logger = logger;
         }
 
-        // GET: Expense
         public async Task<IActionResult> Index(int? categoryId, string sortOrder, DateTime? startDate, DateTime? endDate)
         {
             var user = await _userManager.GetUserAsync(User);
@@ -35,18 +34,17 @@ namespace Expense_Tracker.Controllers
                 return RedirectToAction("Login", "Account");
             }
 
-            // Start with base query
             var query = _context.Expenses
                 .Include(e => e.Category)
                 .Where(e => e.UserId == user.Id);
 
-            // Apply category filter
+            // category filter
             if (categoryId.HasValue)
             {
                 query = query.Where(e => e.CategoryId == categoryId.Value);
             }
 
-            // Apply date filter
+            // date filter
             if (startDate.HasValue)
             {
                 query = query.Where(e => e.Date >= startDate.Value);
@@ -56,7 +54,7 @@ namespace Expense_Tracker.Controllers
                 query = query.Where(e => e.Date <= endDate.Value);
             }
 
-            // Apply sorting
+            // sorting
             query = sortOrder switch
             {
                 "date_asc" => query.OrderBy(e => e.Date),
@@ -68,7 +66,6 @@ namespace Expense_Tracker.Controllers
 
             var expenses = await query.ToListAsync();
 
-            // Prepare view model
             var viewModel = new ExpenseFilterViewModel
             {
                 Expenses = expenses,
@@ -78,13 +75,11 @@ namespace Expense_Tracker.Controllers
                 EndDate = endDate
             };
 
-            // Get categories for filter dropdown
             ViewBag.Categories = new SelectList(_context.Categories, "Id", "Name", categoryId);
 
             return View(viewModel);
         }
 
-        // GET: Expense/Create
         public IActionResult Create()
         {
             var user = _userManager.GetUserAsync(User).Result;
@@ -97,7 +92,6 @@ namespace Expense_Tracker.Controllers
             return View(new Expense { Date = DateTime.Today });
         }
 
-        // POST: Expense/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("Description,Amount,Date,CategoryId")] Expense expense)
@@ -141,12 +135,10 @@ namespace Expense_Tracker.Controllers
                 ModelState.AddModelError("", "Error saving expense: " + ex.Message);
             }
 
-            // If we got this far, something failed
             ViewBag.Categories = new SelectList(_context.Categories, "Id", "Name", expense.CategoryId);
             return View(expense);
         }
 
-        // GET: Expense/Edit/5
         [HttpGet]
         public async Task<IActionResult> Edit(int id)
         {
@@ -165,7 +157,6 @@ namespace Expense_Tracker.Controllers
                 return NotFound();
             }
 
-            // Create SelectList for categories
             ViewBag.Categories = new SelectList(
                 await _context.Categories.ToListAsync(),
                 "Id",
@@ -176,7 +167,6 @@ namespace Expense_Tracker.Controllers
             return View(expense);
         }
 
-        // PUT: Expense/Edit/5
         [HttpPut("Expense/Edit/{id}")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, [FromBody] Expense expense)
@@ -188,7 +178,6 @@ namespace Expense_Tracker.Controllers
                     return BadRequest(new { success = false, message = "Invalid expense ID" });
                 }
 
-                // Get current user
                 var user = await _userManager.GetUserAsync(User);
                 if (user == null)
                 {
@@ -204,12 +193,10 @@ namespace Expense_Tracker.Controllers
                     return NotFound(new { success = false, message = "Expense not found" });
                 }
 
-                // Remove validation for navigation properties and UserId
                 ModelState.Remove("Category");
                 ModelState.Remove("User");
-                ModelState.Remove("UserId"); // Remove UserId validation since we're setting it manually
+                ModelState.Remove("UserId"); 
 
-                // Verify the selected category exists
                 var categoryExists = await _context.Categories.AnyAsync(c => c.Id == expense.CategoryId);
                 if (!categoryExists)
                 {
@@ -225,12 +212,10 @@ namespace Expense_Tracker.Controllers
                         existingExpense.Amount = expense.Amount;
                         existingExpense.Date = expense.Date;
                         existingExpense.CategoryId = expense.CategoryId;
-                        existingExpense.UserId = user.Id; // Set the current user's ID
+                        existingExpense.UserId = user.Id;
 
-                        // Mark entity as modified
                         _context.Entry(existingExpense).State = EntityState.Modified;
 
-                        // Save changes
                         await _context.SaveChangesAsync();
 
                         return Ok(new

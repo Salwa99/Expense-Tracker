@@ -41,18 +41,18 @@ namespace Expense_Tracker.Controllers
 
             // Calculate expenses by category with fixed colors
             var categoryColors = new Dictionary<string, string>
-    {
-        {"Housing", "#FF6384"},
-        {"Transportation", "#36A2EB"},
-        {"Food", "#FFCE56"},
-        {"Utilities", "#4BC0C0"},
-        {"Insurance", "#9966FF"},
-        {"Healthcare", "#FF9F40"},
-        {"Entertainment", "#EA80FC"},
-        {"Shopping", "#607D8B"},
-        {"Education", "#00E676"},
-        {"Other", "#FF5722"}
-    };
+            {
+                {"Housing", "#FF6384"},
+                {"Transportation", "#36A2EB"},
+                {"Food", "#FFCE56"},
+                {"Utilities", "#4BC0C0"},
+                {"Insurance", "#9966FF"},
+                {"Healthcare", "#FF9F40"},
+                {"Entertainment", "#EA80FC"},
+                {"Shopping", "#607D8B"},
+                {"Education", "#00E676"},
+                {"Other", "#FF5722"}
+            };
 
             var categoryExpenses = expenses
                 .GroupBy(e => e.Category.Name)
